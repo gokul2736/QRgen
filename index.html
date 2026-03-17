@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick QR Generator</title>
+    <title>Smart QR Generator</title>
     <style>
-        /* Integrated your specific background gradient here */
         body { 
             font-family: 'Montserrat', system-ui, -apple-system, sans-serif; 
             display: flex; 
@@ -21,53 +20,66 @@
             background: white; 
             padding: 30px; 
             border-radius: 12px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.35); /* Matched shadow to your CSS style */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.35); 
             text-align: center; 
             width: 100%; 
-            max-width: 320px; 
+            max-width: 380px; 
         }
         
-        input { 
+        textarea { 
             width: 100%; 
             padding: 12px; 
-            margin-bottom: 15px; 
+            margin-bottom: 10px; 
             border: none; 
             background-color: #eee;
             border-radius: 8px; 
             box-sizing: border-box; 
-            font-size: 14px; 
+            font-size: 13px; 
             outline: none;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
         }
         
         button { 
-            background-color: #512da8; /* Updated button color to match your theme */
+            background-color: #512da8; 
             color: white; 
             border: none; 
             padding: 12px 15px; 
             border-radius: 8px; 
             cursor: pointer; 
             width: 100%; 
-            margin-bottom: 10px; 
             font-weight: 600; 
             letter-spacing: 0.5px;
             text-transform: uppercase;
             transition: opacity 0.2s; 
         }
         
-        button:hover { 
-            opacity: 0.9; 
+        button:hover { opacity: 0.9; }
+
+        /* Extracted Links UI */
+        #extracted-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+
+        .link-chip {
+            background-color: #e2e2e2;
+            color: #333;
+            border: 1px solid #ccc;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: none;
+            width: auto;
+            letter-spacing: 0;
         }
         
-        .secondary-btn { 
-            background: #ffffff; 
-            color: #512da8; 
-            border: 1px solid #512da8; 
-            display: none; 
-        }
-        
-        .secondary-btn:hover { 
-            background: #f0f0f0; 
-        }
+        .link-chip:hover { background-color: #d0d0d0; }
         
         #qr-box { 
             margin: 20px 0; 
@@ -76,6 +88,20 @@
             align-items: center; 
             min-height: 200px; 
         }
+
+        /* Action Buttons */
+        .action-group {
+            display: none; /* Hidden until generated */
+            gap: 10px;
+        }
+
+        .secondary-btn { 
+            background: #ffffff; 
+            color: #512da8; 
+            border: 1px solid #512da8; 
+        }
+        
+        .secondary-btn:hover { background: #f4f0ff; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -83,31 +109,76 @@
 <body>
 
 <div class="container">
-    <h2 style="margin-top: 0; margin-bottom: 20px; font-weight: 600; color: #333;">QR Generator</h2>
-    <input type="url" id="urlInput" placeholder="Enter link here (e.g., https://...)" required>
-    <button onclick="generateQR()">Generate</button>
+    <h2 style="margin-top: 0; margin-bottom: 20px; font-weight: 600; color: #333;">Smart QR</h2>
+    <textarea id="textInput" placeholder="Paste text or links here..."></textarea>
+    
+    <div id="extracted-links"></div>
+
+    <button id="mainGenerateBtn" onclick="processInput()">Generate</button>
     
     <div id="qr-box"></div>
     
-    <button id="downloadBtn" class="secondary-btn" onclick="downloadQR()">Download QR</button>
+    <div class="action-group" id="actionGroup">
+        <button class="secondary-btn" onclick="copyQR()">Copy Image</button>
+        <button class="secondary-btn" onclick="downloadQR()">Download</button>
+    </div>
 </div>
 
 <script>
     const qrBox = document.getElementById("qr-box");
-    const downloadBtn = document.getElementById("downloadBtn");
+    const actionGroup = document.getElementById("actionGroup");
+    const linksContainer = document.getElementById("extracted-links");
     let qrCodeObj = null;
 
-    function generateQR() {
-        const url = document.getElementById("urlInput").value.trim();
-        if (!url) {
-            alert("Please enter a valid link.");
-            return;
+    // Format URL for the chips (extracts domain)
+    function getDomainKeyword(urlStr) {
+        try {
+            const url = new URL(urlStr);
+            return url.hostname.replace('www.', '');
+        } catch (e) {
+            return "Link";
         }
+    }
 
-        qrBox.innerHTML = ""; // Clear previous
+    function processInput() {
+        const rawText = document.getElementById("textInput").value.trim();
+        if (!rawText) return alert("Please enter some text.");
+
+        // Regex to find URLs
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const foundLinks = rawText.match(urlRegex);
+
+        linksContainer.innerHTML = ""; // Clear previous chips
+        actionGroup.style.display = "none";
+        qrBox.innerHTML = "";
+
+        if (!foundLinks) {
+            // No links found, just make a QR code of the raw text
+            renderQR(rawText);
+        } else if (foundLinks.length === 1) {
+            // Exactly one link found, generate immediately
+            renderQR(foundLinks[0]);
+        } else {
+            // Multiple links found, show options
+            qrBox.innerHTML = "<p style='font-size: 13px; color: #666;'>Multiple links detected. Select one:</p>";
+            foundLinks.forEach(link => {
+                let btn = document.createElement("button");
+                btn.className = "link-chip";
+                btn.innerText = getDomainKeyword(link);
+                btn.onclick = () => {
+                    linksContainer.innerHTML = ""; // Clear chips once selected
+                    renderQR(link);
+                };
+                linksContainer.appendChild(btn);
+            });
+        }
+    }
+
+    function renderQR(data) {
+        qrBox.innerHTML = ""; // Clear box
         
         qrCodeObj = new QRCode(qrBox, {
-            text: url,
+            text: data,
             width: 200,
             height: 200,
             colorDark : "#000000",
@@ -116,26 +187,37 @@
         });
 
         setTimeout(() => {
-            downloadBtn.style.display = "block";
+            actionGroup.style.display = "flex";
         }, 150);
+    }
+
+    async function copyQR() {
+        const canvas = qrBox.querySelector("canvas");
+        if (!canvas) return;
+
+        try {
+            canvas.toBlob(async (blob) => {
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+                alert("QR Code copied to clipboard!");
+            });
+        } catch (err) {
+            // Fallback warning for browsers/environments blocking clipboard access
+            alert("Your browser blocks direct clipboard copying. Right-click or long-press the QR to copy.");
+        }
     }
 
     function downloadQR() {
         const canvas = qrBox.querySelector("canvas");
-        const image = qrBox.querySelector("img");
+        if (!canvas) return;
         
-        let sourceUrl = canvas ? canvas.toDataURL("image/png") : (image ? image.src : null);
-        
-        if (sourceUrl) {
-            const link = document.createElement("a");
-            link.href = sourceUrl;
-            link.download = "static-qr-code.png";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } else {
-            alert("QR Code rendering failed. Please try again.");
-        }
+        const sourceUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = sourceUrl;
+        link.download = "smart-qr.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 </script>
 
