@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick QR Generator</title>
+    <style>
+        /* Integrated your specific background gradient here */
+        body { 
+            font-family: 'Montserrat', system-ui, -apple-system, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0;
+            background-color: #c9d6ff;
+            background: linear-gradient(to right, #e2e2e2, #c9d6ff);
+        }
+        
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.35); /* Matched shadow to your CSS style */
+            text-align: center; 
+            width: 100%; 
+            max-width: 320px; 
+        }
+        
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            border: none; 
+            background-color: #eee;
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 14px; 
+            outline: none;
+        }
+        
+        button { 
+            background-color: #512da8; /* Updated button color to match your theme */
+            color: white; 
+            border: none; 
+            padding: 12px 15px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            margin-bottom: 10px; 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: opacity 0.2s; 
+        }
+        
+        button:hover { 
+            opacity: 0.9; 
+        }
+        
+        .secondary-btn { 
+            background: #ffffff; 
+            color: #512da8; 
+            border: 1px solid #512da8; 
+            display: none; 
+        }
+        
+        .secondary-btn:hover { 
+            background: #f0f0f0; 
+        }
+        
+        #qr-box { 
+            margin: 20px 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 200px; 
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+    <h2 style="margin-top: 0; margin-bottom: 20px; font-weight: 600; color: #333;">QR Generator</h2>
+    <input type="url" id="urlInput" placeholder="Enter link here (e.g., https://...)" required>
+    <button onclick="generateQR()">Generate</button>
+    
+    <div id="qr-box"></div>
+    
+    <button id="downloadBtn" class="secondary-btn" onclick="downloadQR()">Download QR</button>
+</div>
+
+<script>
+    const qrBox = document.getElementById("qr-box");
+    const downloadBtn = document.getElementById("downloadBtn");
+    let qrCodeObj = null;
+
+    function generateQR() {
+        const url = document.getElementById("urlInput").value.trim();
+        if (!url) {
+            alert("Please enter a valid link.");
+            return;
+        }
+
+        qrBox.innerHTML = ""; // Clear previous
+        
+        qrCodeObj = new QRCode(qrBox, {
+            text: url,
+            width: 200,
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H 
+        });
+
+        setTimeout(() => {
+            downloadBtn.style.display = "block";
+        }, 150);
+    }
+
+    function downloadQR() {
+        const canvas = qrBox.querySelector("canvas");
+        const image = qrBox.querySelector("img");
+        
+        let sourceUrl = canvas ? canvas.toDataURL("image/png") : (image ? image.src : null);
+        
+        if (sourceUrl) {
+            const link = document.createElement("a");
+            link.href = sourceUrl;
+            link.download = "static-qr-code.png";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            alert("QR Code rendering failed. Please try again.");
+        }
+    }
+</script>
+
+</body>
+</html>
