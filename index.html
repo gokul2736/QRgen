@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart QR Generator</title>
+    <title>Multi-Link QR Generator</title>
     <style>
         body { 
             font-family: 'Montserrat', system-ui, -apple-system, sans-serif; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            height: 100vh; 
+            min-height: 100vh; 
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
             background-color: #c9d6ff;
             background: linear-gradient(to right, #e2e2e2, #c9d6ff);
         }
@@ -23,13 +25,13 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.35); 
             text-align: center; 
             width: 100%; 
-            max-width: 380px; 
+            max-width: 800px; /* Widened to accommodate a grid of QR codes */
         }
         
         textarea { 
             width: 100%; 
             padding: 12px; 
-            margin-bottom: 10px; 
+            margin-bottom: 15px; 
             border: none; 
             background-color: #eee;
             border-radius: 8px; 
@@ -37,71 +39,89 @@
             font-size: 13px; 
             outline: none;
             resize: vertical;
-            min-height: 80px;
+            min-height: 100px;
             font-family: inherit;
         }
         
-        button { 
+        .main-btn { 
             background-color: #512da8; 
             color: white; 
             border: none; 
-            padding: 12px 15px; 
+            padding: 12px 20px; 
             border-radius: 8px; 
             cursor: pointer; 
-            width: 100%; 
             font-weight: 600; 
             letter-spacing: 0.5px;
             text-transform: uppercase;
             transition: opacity 0.2s; 
+            width: 100%;
+            max-width: 300px;
         }
         
-        button:hover { opacity: 0.9; }
+        .main-btn:hover { opacity: 0.9; }
 
-        /* Extracted Links UI */
-        #extracted-links {
+        /* Grid layout for multiple QR results */
+        #results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+            width: 100%;
+        }
+
+        .qr-card {
+            background: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 15px;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
-        .link-chip {
-            background-color: #e2e2e2;
+        .qr-title {
+            font-size: 12px;
+            font-weight: 600;
             color: #333;
-            border: 1px solid #ccc;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            cursor: pointer;
-            text-transform: none;
-            width: auto;
-            letter-spacing: 0;
-        }
-        
-        .link-chip:hover { background-color: #d0d0d0; }
-        
-        #qr-box { 
-            margin: 20px 0; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 200px; 
+            margin: 0 0 15px 0;
+            word-break: break-all;
+            background: #eee;
+            padding: 5px 10px;
+            border-radius: 15px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
-        /* Action Buttons */
+        .qr-wrapper {
+            margin-bottom: 15px;
+            min-height: 150px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .action-group {
-            display: none; /* Hidden until generated */
-            gap: 10px;
+            display: flex;
+            gap: 8px;
+            width: 100%;
         }
 
-        .secondary-btn { 
+        .action-btn { 
+            flex: 1;
             background: #ffffff; 
             color: #512da8; 
             border: 1px solid #512da8; 
+            padding: 8px 5px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s;
         }
         
-        .secondary-btn:hover { background: #f4f0ff; }
+        .action-btn:hover { background: #f4f0ff; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -109,34 +129,23 @@
 <body>
 
 <div class="container">
-    <h2 style="margin-top: 0; margin-bottom: 20px; font-weight: 600; color: #333;">Smart QR</h2>
-    <textarea id="textInput" placeholder="Paste text or links here..."></textarea>
+    <h2 style="margin-top: 0; margin-bottom: 20px; font-weight: 600; color: #333;">Multi-Link QR Generator</h2>
+    <textarea id="textInput" placeholder="Paste a paragraph containing multiple links here..."></textarea>
     
-    <div id="extracted-links"></div>
-
-    <button id="mainGenerateBtn" onclick="processInput()">Generate</button>
+    <button class="main-btn" onclick="processInput()">Generate QR Codes</button>
     
-    <div id="qr-box"></div>
-    
-    <div class="action-group" id="actionGroup">
-        <button class="secondary-btn" onclick="copyQR()">Copy Image</button>
-        <button class="secondary-btn" onclick="downloadQR()">Download</button>
-    </div>
+    <div id="results-container"></div>
 </div>
 
 <script>
-    const qrBox = document.getElementById("qr-box");
-    const actionGroup = document.getElementById("actionGroup");
-    const linksContainer = document.getElementById("extracted-links");
-    let qrCodeObj = null;
+    const resultsContainer = document.getElementById("results-container");
 
-    // Format URL for the chips (extracts domain)
     function getDomainKeyword(urlStr) {
         try {
             const url = new URL(urlStr);
             return url.hostname.replace('www.', '');
         } catch (e) {
-            return "Link";
+            return "Raw Text";
         }
     }
 
@@ -144,77 +153,105 @@
         const rawText = document.getElementById("textInput").value.trim();
         if (!rawText) return alert("Please enter some text.");
 
-        // Regex to find URLs
+        resultsContainer.innerHTML = ""; // Clear previous results
+
+        // Regex to extract all URLs
         const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const foundLinks = rawText.match(urlRegex);
+        // Use a Set to remove duplicate links if the user pasted the same one twice
+        const foundLinks = [...new Set(rawText.match(urlRegex) || [])];
 
-        linksContainer.innerHTML = ""; // Clear previous chips
-        actionGroup.style.display = "none";
-        qrBox.innerHTML = "";
-
-        if (!foundLinks) {
-            // No links found, just make a QR code of the raw text
-            renderQR(rawText);
-        } else if (foundLinks.length === 1) {
-            // Exactly one link found, generate immediately
-            renderQR(foundLinks[0]);
+        if (foundLinks.length === 0) {
+            // No links found, generate one for the raw text
+            createQRCard(rawText, "Raw Text Input");
         } else {
-            // Multiple links found, show options
-            qrBox.innerHTML = "<p style='font-size: 13px; color: #666;'>Multiple links detected. Select one:</p>";
-            foundLinks.forEach(link => {
-                let btn = document.createElement("button");
-                btn.className = "link-chip";
-                btn.innerText = getDomainKeyword(link);
-                btn.onclick = () => {
-                    linksContainer.innerHTML = ""; // Clear chips once selected
-                    renderQR(link);
-                };
-                linksContainer.appendChild(btn);
+            // Loop through every unique link and create a card simultaneously
+            foundLinks.forEach((link, index) => {
+                const title = getDomainKeyword(link);
+                createQRCard(link, title, index);
             });
         }
     }
 
-    function renderQR(data) {
-        qrBox.innerHTML = ""; // Clear box
-        
-        qrCodeObj = new QRCode(qrBox, {
+    function createQRCard(data, titleText, index = 0) {
+        // 1. Create the Card Container
+        const card = document.createElement("div");
+        card.className = "qr-card";
+
+        // 2. Create the Title/Label
+        const title = document.createElement("div");
+        title.className = "qr-title";
+        title.innerText = titleText;
+        card.appendChild(title);
+
+        // 3. Create the QR Wrapper
+        const qrWrapper = document.createElement("div");
+        qrWrapper.className = "qr-wrapper";
+        card.appendChild(qrWrapper);
+
+        // 4. Generate the QR Code inside the wrapper
+        new QRCode(qrWrapper, {
             text: data,
-            width: 200,
-            height: 200,
+            width: 150, // Slightly smaller for grid layout
+            height: 150,
             colorDark : "#000000",
             colorLight : "#ffffff",
             correctLevel : QRCode.CorrectLevel.H 
         });
 
-        setTimeout(() => {
-            actionGroup.style.display = "flex";
-        }, 150);
+        // 5. Create the Action Buttons (Copy / Download)
+        const actionGroup = document.createElement("div");
+        actionGroup.className = "action-group";
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "action-btn";
+        copyBtn.innerText = "Copy";
+        copyBtn.onclick = () => copyQR(qrWrapper);
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.className = "action-btn";
+        downloadBtn.innerText = "Download";
+        downloadBtn.onclick = () => downloadQR(qrWrapper, titleText, index);
+
+        // Hide buttons initially, show after a tiny delay to ensure canvas renders
+        actionGroup.style.display = "none";
+        setTimeout(() => { actionGroup.style.display = "flex"; }, 150);
+
+        actionGroup.appendChild(copyBtn);
+        actionGroup.appendChild(downloadBtn);
+        card.appendChild(actionGroup);
+
+        // 6. Add card to the main grid
+        resultsContainer.appendChild(card);
     }
 
-    async function copyQR() {
-        const canvas = qrBox.querySelector("canvas");
+    // Pass the specific wrapper to ensure we copy the right canvas
+    async function copyQR(wrapperElement) {
+        const canvas = wrapperElement.querySelector("canvas");
         if (!canvas) return;
 
         try {
             canvas.toBlob(async (blob) => {
                 const item = new ClipboardItem({ "image/png": blob });
                 await navigator.clipboard.write([item]);
-                alert("QR Code copied to clipboard!");
+                alert("QR Code copied!");
             });
         } catch (err) {
-            // Fallback warning for browsers/environments blocking clipboard access
-            alert("Your browser blocks direct clipboard copying. Right-click or long-press the QR to copy.");
+            alert("Clipboard access blocked. Right-click the image to copy.");
         }
     }
 
-    function downloadQR() {
-        const canvas = qrBox.querySelector("canvas");
+    // Pass the specific wrapper to ensure we download the right canvas
+    function downloadQR(wrapperElement, titleText, index) {
+        const canvas = wrapperElement.querySelector("canvas");
         if (!canvas) return;
         
         const sourceUrl = canvas.toDataURL("image/png");
         const link = document.createElement("a");
         link.href = sourceUrl;
-        link.download = "smart-qr.png";
+        // Clean up the title for the filename
+        const safeName = titleText.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        link.download = `qr_${safeName}_${index}.png`;
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
